@@ -37,8 +37,8 @@
 //#include "DataFormats/Common/interface/Handle.h"
 //#include "DataFormats/Common/interface/TriggerResults.h"
 #include "DataFormats/BeamSpot/interface/BeamSpot.h"
-//#include "DataFormats/VertexReco/interface/Vertex.h"
-//#include "DataFormats/VertexReco/interface/VertexFwd.h"
+#include "DataFormats/VertexReco/interface/Vertex.h"
+#include "DataFormats/VertexReco/interface/VertexFwd.h"
 
 
 //#include "DataFormats/TrackReco/interface/Track.h"
@@ -57,6 +57,8 @@
 #include <TH1.h>
 
 using namespace std;
+using namespace edm;
+using namespace reco;
 
 const int MUONMINUS_PDG_ID = 13;
 const int PIONPLUS_PDG_ID = 211;
@@ -167,6 +169,10 @@ class BToPiMuMu : public edm::EDAnalyzer {
 
   void buildBuToPiMuMu(const edm::Event &);
 
+  bool hasBeamSpot(const edm::Event&);
+
+  bool hasPrimaryVertex(const edm::Event &);
+
 
 
 
@@ -195,6 +201,7 @@ class BToPiMuMu : public edm::EDAnalyzer {
 
   //gen particle
   bool IsMonteCarlo_;
+  bool KeepGENOnly_;
   double TruthMatchMuonMaxR_;
   double TruthMatchPionMaxR_;
 
@@ -203,7 +210,7 @@ class BToPiMuMu : public edm::EDAnalyzer {
   double MuonMaxEta_;
   double MuonMaxDcaBs_;
   double TrkMinPt_;
-  double TrkMaxDcaSigBs_;
+  double TrkMinDcaSigBs_;
   double TrkMaxR_;
   double TrkMaxZ_;
   double MuMuMaxDca_;
@@ -222,9 +229,9 @@ class BToPiMuMu : public edm::EDAnalyzer {
 
   // Across the event
   map<string, string> mapTriggerToLastFilter_;
-  //reco::BeamSpot beamSpot_;
+  reco::BeamSpot beamSpot_;
   edm::ESHandle<MagneticField> bFieldHandle_;
-  //reco::Vertex primaryVertex_;
+  reco::Vertex primaryVertex_;
 
   // ---- Root Variables ----
   TFile* fout_;
@@ -293,12 +300,92 @@ class BToPiMuMu : public edm::EDAnalyzer {
 //
 // constructors and destructor
 //
-BToPiMuMu::BToPiMuMu(const edm::ParameterSet& iConfig)
+BToPiMuMu::BToPiMuMu(const edm::ParameterSet& iConfig):
 
+    OutputFileName_(iConfig.getParameter<string>("OutputFileName")),
+
+    // particle properties
+    MuonMass_(iConfig.getUntrackedParameter<double>("MuonMass")),
+    MuonMassErr_(iConfig.getUntrackedParameter<double>("MuonMassErr")),
+    PionMass_(iConfig.getUntrackedParameter<double>("PionMass")),
+    PionMassErr_(iConfig.getUntrackedParameter<double>("PionMassErr")),
+    BuMass_(iConfig.getUntrackedParameter<double>("BuMass")),
+
+    // labels
+    GenParticlesLabel_(iConfig.getParameter<edm::InputTag>("GenParticlesLabel")),
+    TriggerResultsLabel_(iConfig.getParameter<edm::InputTag>("TriggerResultsLabel")),
+    BeamSpotLabel_(iConfig.getParameter<edm::InputTag>("BeamSpotLabel")),
+    VertexLabel_(iConfig.getParameter<edm::InputTag>("VertexLabel")),
+    MuonLabel_(iConfig.getParameter<edm::InputTag>("MuonLabel")),
+    TrackLabel_(iConfig.getParameter<edm::InputTag>("TrackLabel")),
+    TriggerNames_(iConfig.getParameter< vector<string> >("TriggerNames")),
+    LastFilterNames_(iConfig.getParameter< vector<string> >("LastFilterNames")),
+
+    // gen particle
+    IsMonteCarlo_(iConfig.getUntrackedParameter<bool>("IsMonteCarlo")),
+    KeepGENOnly_(iConfig.getUntrackedParameter<bool>("KeepGENOnly")),
+    TruthMatchMuonMaxR_(iConfig.getUntrackedParameter<double>("TruthMatchMuonMaxR")),
+    TruthMatchPionMaxR_(iConfig.getUntrackedParameter<double>("TruthMatchPionMaxR")),
+
+    // pre-selection cuts
+    MuonMinPt_(iConfig.getUntrackedParameter<double>("MuonMinPt")),
+    MuonMaxEta_(iConfig.getUntrackedParameter<double>("MuonMaxEta")),
+    MuonMaxDcaBs_(iConfig.getUntrackedParameter<double>("MuonMaxDcaBs")),
+    TrkMinPt_(iConfig.getUntrackedParameter<double>("TrkMinPt")),
+    TrkMinDcaSigBs_(iConfig.getUntrackedParameter<double>("TrkMinDcaSigBs")),
+    TrkMaxR_(iConfig.getUntrackedParameter<double>("TrkMaxR")),
+    TrkMaxZ_(iConfig.getUntrackedParameter<double>("TrkMaxZ")),
+    MuMuMaxDca_(iConfig.getUntrackedParameter<double>("MuMuMaxDca")),
+    MuMuMinVtxCl_(iConfig.getUntrackedParameter<double>("MuMuMinVtxCl")),
+    MuMuMinPt_(iConfig.getUntrackedParameter<double>("MuMuMinPt")),
+    MuMuMinInvMass_(iConfig.getUntrackedParameter<double>("MuMuMinInvMass")),
+    MuMuMaxInvMass_(iConfig.getUntrackedParameter<double>("MuMuMaxInvMass")),
+    MuMuMinLxySigmaBs_(iConfig.getUntrackedParameter<double>("MuMuMinLxySigmaBs")),
+    MuMuMinCosAlphaBs_(iConfig.getUntrackedParameter<double>("MuMuMinCosAlphaBs")),
+    
+   
+    BMinVtxCl_(iConfig.getUntrackedParameter<double>("BMinVtxCl")),
+    BMinMass_(iConfig.getUntrackedParameter<double>("BMinMass")),
+    BMaxMass_(iConfig.getUntrackedParameter<double>("BMaxMass")),
+
+    tree_(0),
+    triggernames(0), triggerprescales(0),
+    mumdcabs(0), mumdcabserr(0), mumpx(0), mumpy(0), mumpz(0),
+    mupdcabs(0), mupdcabserr(0), muppx(0), muppy(0), muppz(0),
+    mumutrkr(0), mumutrkz(0), mumudca(0), mumuvtxcl(0), mumulsbs(0),
+    mumulsbserr(0), mumucosalphabs(0), mumucosalphabserr(0),
+    mumumass(0), mumumasserr(0),
+    mumisgoodmuon(0), mupisgoodmuon(0),
+    mumnpixhits(0), mupnpixhits(0), mumnpixlayers(0), mupnpixlayers(0),
+    mumntrkhits(0), mupntrkhits(0), mumntrklayers(0), mupntrklayers(0),
+    mumnormchi2(0), mupnormchi2(0), mumdxyvtx(0), mupdxyvtx(0),
+    mumdzvtx(0), mupdzvtx(0), mumtriglastfilter(0), muptriglastfilter(0),
+    mumpt(0), muppt(0), mumeta(0), mupeta(0),
+
+    trkchg(0), trkpx(0), trkpy(0), trkpz(0), trkpt(0),
+    trkdcabs(0), trkdcabserr(0),
+
+    nb(0), bchg(0), bpx(0), bpxerr(0), bpy(0), bpyerr(0), bpz(0), bpzerr(0),
+    bmass(0), bmasserr(0),
+    bvtxcl(0), bvtxx(0), bvtxxerr(0), bvtxy(0), bvtxyerr(0), bvtxz(0), bvtxzerr(0),
+    bcosalphabs(0), bcosalphabserr(0), blsbs(0), blsbserr(0), bctau(0), bctauerr(0),
+    bcosalphabs2d(0), bcosalphabs2derr(0), 
+
+    genbchg(0),
+    genbpx(0), genbpy(0), genbpz(0),
+    gentrkchg(0), gentrkpx(0), gentrkpy(0), gentrkpz(0),
+    genmumpx(0), genmumpy(0), genmumpz(0),
+    genmuppx(0), genmuppy(0), genmuppz(0),
+
+    decname(""),
+    istruemum(0), istruemup(0), istruetrk(0), istruebu(0)
 {
    //now do what ever initialization is needed
-
+      assert(TriggerNames_.size() == LastFilterNames_.size());
+    for (size_t i = 0; i < TriggerNames_.size(); ++i)
+      mapTriggerToLastFilter_[TriggerNames_[i]] = LastFilterNames_[i];
 }
+
 
 
 BToPiMuMu::~BToPiMuMu()
@@ -371,6 +458,10 @@ BToPiMuMu::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   desc.setUnknown();
   descriptions.addDefault(desc);
 }
+
+
+
+
 
 //define this as a plug-in
 DEFINE_FWK_MODULE(BToPiMuMu);
