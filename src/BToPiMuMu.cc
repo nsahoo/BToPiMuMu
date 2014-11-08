@@ -11,7 +11,7 @@
      [Notes on implementation]
 */
 //
-// Original Author:  Niladribihari Sahoo,,,
+// Original Author:  Niladribihari Sahoo <nsahoo@cern.ch>
 //         Created:  Thu Oct  2 08:05:02 CEST 2014
 // $Id$
 //
@@ -168,11 +168,9 @@ class BToPiMuMu : public edm::EDAnalyzer {
       virtual void endLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&);
 
   void buildBuToPiMuMu(const edm::Event &);
-
   bool hasBeamSpot(const edm::Event&);
-
   bool hasPrimaryVertex(const edm::Event &);
-
+  void clearVariables();
 
 
 
