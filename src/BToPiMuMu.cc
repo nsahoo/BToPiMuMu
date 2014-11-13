@@ -35,18 +35,22 @@
 //#include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
 
 //#include "DataFormats/Common/interface/Handle.h"
-//#include "DataFormats/Common/interface/TriggerResults.h"
+#include "DataFormats/Common/interface/TriggerResults.h"
 #include "DataFormats/BeamSpot/interface/BeamSpot.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/VertexReco/interface/VertexFwd.h"
+#include "DataFormats/PatCandidates/interface/Muon.h"
+#include "DataFormats/PatCandidates/interface/CompositeCandidate.h"
+#include "DataFormats/PatCandidates/interface/GenericParticle.h"
 
-
-//#include "DataFormats/TrackReco/interface/Track.h"
+#include "DataFormats/TrackReco/interface/Track.h"
 //#include "DataFormats/TrackReco/interface/TrackFwd.h"
 //#include "DataFormats/Math/interface/Error.h"
 //#include "DataFormats/Math/interface/Point3D.h"
 //#include "DataFormats/VertexReco/interface/Vertex.h"
 //#include "DataFormats/Math/interface/LorentzVector.h"
+
+#include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
 
 #include "RecoVertex/KinematicFitPrimitives/interface/ParticleMass.h"
 
@@ -174,7 +178,8 @@ class BToPiMuMu : public edm::EDAnalyzer {
   void hltReport(const edm::Event&);
   void saveGenInfo(const edm::Event&);
   void saveTruthMatch(const edm::Event&);
-
+  bool hasGoodPionTrack(const edm::Event&, const pat::GenericParticle, double &);
+  bool matchMuonTrack (const edm::Event&, const reco::TrackRef);
 
 
       // ----------member data ---------------------------
@@ -634,8 +639,109 @@ BToPiMuMu::clearVariables(){
 
 }
 
+void
+BToPiMuMu::hltReport(const edm::Event& iEvent)
+{
+  edm::Handle<edm::TriggerResults> hltTriggerResults;
+  try {iEvent.getByLabel( TriggerResultsLabel_, hltTriggerResults ); }
+  catch ( ... ) { edm::LogInfo("myHLT")
+      << __LINE__ << " : couldn't get handle on HLT Trigger" ; }
+  
+  HLTConfigProvider hltConfig_;
+  if (hltTriggerResults.isValid()) {
+    const edm::TriggerNames& triggerNames_ = iEvent.triggerNames(*hltTriggerResults);
 
+    for (unsigned int itrig = 0; itrig < hltTriggerResults->size(); itrig++){
 
+      // Only consider the triggered case.
+      if ((*hltTriggerResults)[itrig].accept() == 1){
+
+        string triggername = triggerNames_.triggerName(itrig);        
+        int triggerprescale = hltConfig_.prescaleValue(itrig, triggername);
+
+        // Loop over our interested HLT trigger names to find if this event contains.
+        for (unsigned int it=0; it<TriggerNames_.size(); it++){
+	  if (triggername.find(TriggerNames_[it]) != string::npos) {
+	    // save the no versioned case
+	    triggernames->push_back(TriggerNames_[it]);
+	    triggerprescales->push_back(triggerprescale);
+
+	  }}}}}
+}
+
+bool
+BToPiMuMu::hasBeamSpot(const edm::Event& iEvent)
+{
+  edm::Handle<reco::BeamSpot> beamSpotHandle;
+  iEvent.getByLabel(BeamSpotLabel_, beamSpotHandle);
+  
+  if ( ! beamSpotHandle.isValid() ) {
+    edm::LogError("myBeam") << "No beam spot available from EventSetup" ;
+    return false;
+  }
+  
+  beamSpot_ = *beamSpotHandle;
+  return true;
+}
+
+bool
+BToPiMuMu::hasPrimaryVertex(const edm::Event& iEvent)
+{
+  edm::Handle<reco::VertexCollection> recVtxs;
+  iEvent.getByLabel(VertexLabel_, recVtxs);
+  nprivtx = recVtxs->size();
+
+  for (std::vector<reco::Vertex>::const_iterator iVertex = recVtxs->begin();
+       iVertex != recVtxs->end(); iVertex++) {
+    primaryVertex_ = *(iVertex);
+    if (primaryVertex_.isValid()) break;
+  }
+
+  if (!primaryVertex_.isValid()) return false;
+ 
+  return true;
+}
+
+bool
+BToPiMuMu::hasGoodPionTrack(const edm::Event& iEvent,
+			   const pat::GenericParticle iTrack,
+			   double & pion_trk_pt)
+{
+  reco::TrackRef theTrackRef = iTrack.track();
+  if ( theTrackRef.isNull() ) return false;
+
+  // veto muon tracks
+  if ( matchMuonTrack(iEvent, theTrackRef) ) return false;
+   
+  // check the track kinematics
+  pion_trk_pt = theTrackRef->pt();
+
+  if ( theTrackRef->pt() < TrkMinPt_ ) return false;
+
+  return true;
+}
+
+bool
+BToPiMuMu::matchMuonTrack (const edm::Event& iEvent,
+			  const reco::TrackRef theTrackRef)
+{
+  if ( theTrackRef.isNull() ) return false;
+
+  edm::Handle< vector<pat::Muon> > thePATMuonHandle;
+  iEvent.getByLabel(MuonLabel_, thePATMuonHandle);
+  
+  reco::TrackRef muTrackRef;
+  for (vector<pat::Muon>::const_iterator iMuon = thePATMuonHandle->begin();
+       iMuon != thePATMuonHandle->end(); iMuon++){
+
+    muTrackRef = iMuon->innerTrack();
+    if ( muTrackRef.isNull() ) continue;
+
+    if (muTrackRef == theTrackRef) return true;
+  }
+  
+  return false;
+}
 
 
 //define this as a plug-in
