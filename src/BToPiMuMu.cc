@@ -44,13 +44,15 @@
 #include "DataFormats/PatCandidates/interface/GenericParticle.h"
 
 #include "DataFormats/TrackReco/interface/Track.h"
-//#include "DataFormats/TrackReco/interface/TrackFwd.h"
+#include "DataFormats/TrackReco/interface/TrackFwd.h"
 //#include "DataFormats/Math/interface/Error.h"
 //#include "DataFormats/Math/interface/Point3D.h"
 //#include "DataFormats/VertexReco/interface/Vertex.h"
 //#include "DataFormats/Math/interface/LorentzVector.h"
 
 #include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
+#include "TrackingTools/TransientTrack/interface/TransientTrack.h"
+#include "TrackingTools/PatternTools/interface/ClosestApproachInRPhi.h"
 
 #include "RecoVertex/KinematicFitPrimitives/interface/ParticleMass.h"
 
@@ -172,7 +174,13 @@ class BToPiMuMu : public edm::EDAnalyzer {
       virtual void endLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&);
 
   void buildBuToPiMuMu(const edm::Event &);
+
   bool hasBeamSpot(const edm::Event&);
+
+  bool hasGoodClosestApproachTracks (const reco::TransientTrack,
+				     const reco::TransientTrack,
+				     double&, double &, double &);
+
   bool hasPrimaryVertex(const edm::Event &);
   void clearVariables();
   void hltReport(const edm::Event&);
@@ -180,6 +188,8 @@ class BToPiMuMu : public edm::EDAnalyzer {
   void saveTruthMatch(const edm::Event&);
   bool hasGoodPionTrack(const edm::Event&, const pat::GenericParticle, double &);
   bool matchMuonTrack (const edm::Event&, const reco::TrackRef);
+  bool hasGoodMuonDcaBs (const reco::TransientTrack, double &, double &);
+  bool hasGoodTrackDcaBs (const reco::TransientTrack, double &, double &);
 
 
       // ----------member data ---------------------------
@@ -741,6 +751,67 @@ BToPiMuMu::matchMuonTrack (const edm::Event& iEvent,
   }
   
   return false;
+}
+
+bool
+BToPiMuMu::hasGoodMuonDcaBs (const reco::TransientTrack muTrackTT,
+			    double &muDcaBs, double &muDcaBsErr)
+{
+  TrajectoryStateClosestToPoint theDCAXBS =
+    muTrackTT.trajectoryStateClosestToPoint(
+     GlobalPoint(beamSpot_.position().x(),
+		 beamSpot_.position().y(),beamSpot_.position().z()));
+  
+  if ( !theDCAXBS.isValid() ) return false;
+  
+  muDcaBs = theDCAXBS.perigeeParameters().transverseImpactParameter();
+  muDcaBsErr = theDCAXBS.perigeeError().transverseImpactParameterError();
+  if ( fabs(muDcaBs) > MuonMaxDcaBs_ ) return false;
+  return true;
+}
+
+bool
+BToPiMuMu::hasGoodTrackDcaBs (const reco::TransientTrack TrackTT,
+			     double &DcaBs, double &DcaBsErr)
+{
+  TrajectoryStateClosestToPoint theDCAXBS =
+    TrackTT.trajectoryStateClosestToPoint(
+     GlobalPoint(beamSpot_.position().x(),
+                 beamSpot_.position().y(),beamSpot_.position().z()));
+  
+  if ( !theDCAXBS.isValid() ) return false;
+  
+  DcaBs = theDCAXBS.perigeeParameters().transverseImpactParameter();
+  DcaBsErr = theDCAXBS.perigeeError().transverseImpactParameterError();
+  if ( fabs(DcaBs/DcaBsErr) < TrkMinDcaSigBs_ ) return false;    
+  return true;
+}
+
+bool
+BToPiMuMu::hasGoodClosestApproachTracks (const reco::TransientTrack muTrackpTT,
+					const reco::TransientTrack muTrackmTT,
+					double & trk_R,
+					double & trk_Z,
+					double & DCAmumu)
+{
+  ClosestApproachInRPhi ClosestApp;
+  ClosestApp.calculate(muTrackpTT.initialFreeState(),
+		       muTrackmTT.initialFreeState());
+  if (! ClosestApp.status()) return false;
+  
+  GlobalPoint XingPoint = ClosestApp.crossingPoint();
+  
+  trk_R = sqrt(XingPoint.x()*XingPoint.x() + XingPoint.y()*XingPoint.y());
+  trk_Z = fabs(XingPoint.z());
+
+  if ((sqrt(XingPoint.x()*XingPoint.x() + XingPoint.y()*XingPoint.y()) >
+       TrkMaxR_) || (fabs(XingPoint.z()) > TrkMaxZ_)) return false;
+
+  DCAmumu = ClosestApp.distance();
+
+  if (DCAmumu > MuMuMaxDca_) return false;
+ 
+  return true;
 }
 
 
