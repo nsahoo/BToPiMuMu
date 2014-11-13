@@ -55,6 +55,13 @@
 #include "TrackingTools/PatternTools/interface/ClosestApproachInRPhi.h"
 
 #include "RecoVertex/KinematicFitPrimitives/interface/ParticleMass.h"
+#include "RecoVertex/KinematicFitPrimitives/interface/KinematicParticle.h"
+#include "RecoVertex/KinematicFitPrimitives/interface/RefCountedKinematicParticle.h"
+#include "RecoVertex/KinematicFitPrimitives/interface/TransientTrackKinematicParticle.h"
+#include "RecoVertex/KinematicFitPrimitives/interface/KinematicParticleFactoryFromTransientTrack.h"
+#include "RecoVertex/KinematicFit/interface/KinematicParticleVertexFitter.h"
+
+#include "CommonTools/Statistics/interface/ChiSquaredProbability.h"
 
 #include <TFile.h>
 #include <TTree.h>
@@ -190,6 +197,10 @@ class BToPiMuMu : public edm::EDAnalyzer {
   bool matchMuonTrack (const edm::Event&, const reco::TrackRef);
   bool hasGoodMuonDcaBs (const reco::TransientTrack, double &, double &);
   bool hasGoodTrackDcaBs (const reco::TransientTrack, double &, double &);
+  bool hasGoodBuVertex(const reco::TrackRef, const reco::TrackRef,
+		       const reco::TrackRef,
+		       double &, double &,
+		       RefCountedKinematicTree &);
 
 
       // ----------member data ---------------------------
@@ -813,6 +824,55 @@ BToPiMuMu::hasGoodClosestApproachTracks (const reco::TransientTrack muTrackpTT,
  
   return true;
 }
+
+
+bool
+BToPiMuMu::hasGoodBuVertex(const reco::TrackRef mu1Track,
+			  const reco::TrackRef mu2Track,
+			  const reco::TrackRef pionTrack,
+			  double & b_vtx_chisq, double & b_vtx_cl,
+			  RefCountedKinematicTree &vertexFitTree)
+{
+
+  // do vertex fit for Bu
+  KinematicParticleFactoryFromTransientTrack pFactory;
+  reco::TransientTrack mu1TT(mu1Track, &(*bFieldHandle_) );
+  reco::TransientTrack mu2TT(mu2Track, &(*bFieldHandle_) );
+  reco::TransientTrack pionTT(pionTrack, &(*bFieldHandle_) );
+
+  float chi = 0.;
+  float ndf = 0.;
+  vector<RefCountedKinematicParticle> vFitMCParticles;
+  vFitMCParticles.push_back(pFactory.particle(mu1TT,MuonMass_,
+					      chi,ndf,MuonMassErr_));
+  vFitMCParticles.push_back(pFactory.particle(mu2TT,MuonMass_,
+					      chi,ndf,MuonMassErr_));
+  vFitMCParticles.push_back(pFactory.particle(pionTT, PionMass_, chi,
+					      ndf, PionMassErr_));
+
+  KinematicParticleVertexFitter fitter;
+  vertexFitTree = fitter.fit(vFitMCParticles);
+  if (!vertexFitTree->isValid()) return false;
+
+  vertexFitTree->movePointerToTheTop();
+  RefCountedKinematicVertex bDecayVertexMC = vertexFitTree->currentDecayVertex();
+  if ( !bDecayVertexMC->vertexIsValid()) return false;
+ 
+
+  b_vtx_chisq = bDecayVertexMC->chiSquared();
+  if ( bDecayVertexMC->chiSquared()<0
+       || bDecayVertexMC->chiSquared()>1000 ) return false;
+
+  RefCountedKinematicVertex b_KV = vertexFitTree->currentDecayVertex();
+  b_vtx_cl = ChiSquaredProbability((double)(b_KV->chiSquared()),
+				   (double)(b_KV->degreesOfFreedom()));
+
+  if ( b_vtx_cl < BMinVtxCl_ ) return false;
+  
+  return true;
+}
+
+
 
 
 //define this as a plug-in
