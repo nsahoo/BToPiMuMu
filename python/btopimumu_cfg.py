@@ -1,6 +1,6 @@
 import FWCore.ParameterSet.Config as cms
 
-process = cms.Process("Demo")
+process = cms.Process("rootuple")
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
 
@@ -13,8 +13,8 @@ process.source = cms.Source("PoolSource",
     )
 )
 
-process.demo = cms.EDAnalyzer('BToPiMuMu'
+process.rootuple = cms.EDAnalyzer('BToPiMuMu'
 )
 
 
-process.p = cms.Path(process.demo)
+process.p = cms.Path(process.rootuple)
