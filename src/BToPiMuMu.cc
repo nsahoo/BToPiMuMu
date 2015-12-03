@@ -10,11 +10,13 @@
  Implementation:
      [Notes on implementation]
 */
+//
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Original Author:  Niladribihari Sahoo <nsahoo@cern.ch>
-// copyright @ Niladribihari Sahoo
+//       copyright @ Niladribihari Sahoo, NISER, Bhubaneswar
 //         Created:  Thu Oct  2 08:05:02 CEST 2014
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
 // $Id$
 //
 //
@@ -82,18 +84,10 @@ const int BPLUS_PDG_ID = 521;
 const int JPSI_PDG_ID = 443;
 const int PSI2S_PDG_ID = 100443;
 
-const int ETA_PDG_ID = 221;
-const int DZERO_PDG_ID = 421;
-const int DSTAR2007_PDG_ID = 423;
-const int DSPLUS_PDG_ID = 431;
-const int DS1PLUS2460_PDG_ID = 20433;
-const int SIGMACSTARPLUSPLUS_PDG_ID = 4224;
-const int DELTAPLUS_PDG_ID = 2214;
-
 const double PI = 3.141592653589793;
 
 
-////// Structures //////                                                                                                                                              
+////// Structures //////                                                                                                 
 struct HistArgs{
   char name[128];
   char title[128];
@@ -129,10 +123,10 @@ enum HistName{
 };
 
 
-///// Global hist args //////                                                                                                                                 
+///// Global hist args //////                                                                                            
 
 HistArgs hist_args[kHistNameSize] = {
-  // name, title, n_bins, x_min, x_max                                                                                                                  
+  // name, title, n_bins, x_min, x_max                                                                                    
             
   {"h_events", "Processed Events", 1, 0, 1},      
   {"h_mupt", "Muon pT; [GeV]", 100, 0, 30},
@@ -203,6 +197,10 @@ class BToPiMuMu : public edm::EDAnalyzer {
 			 double*, double*);
 
   void computeCtau(RefCountedKinematicTree, double &, double &);
+  double computeEta (double, double, double);
+  double computePhi (double, double, double);
+  double computeEtaPhiDistance (double, double, double, double, double, double);
+  void clearVariables();
 
   bool hasBeamSpot(const edm::Event&);
 
@@ -210,31 +208,36 @@ class BToPiMuMu : public edm::EDAnalyzer {
 				     const reco::TransientTrack,
 				     double&, double &, double &);
 
-  bool hasPrimaryVertex(const edm::Event &);
-  void clearVariables();
-  void hltReport(const edm::Event&);
-  void saveGenInfo(const edm::Event&);
-  void saveTruthMatch(const edm::Event&);
-  bool hasGoodPionTrack(const edm::Event&, const pat::GenericParticle, double &);
-  bool matchMuonTrack (const edm::Event&, const reco::TrackRef);
   bool hasGoodMuonDcaBs (const reco::TransientTrack, double &, double &);
   bool hasGoodTrackDcaBs (const reco::TransientTrack, double &, double &);
-  bool hasGoodBuVertex(const reco::TrackRef, const reco::TrackRef,
-		       const reco::TrackRef,
-		       double &, double &,
-		       RefCountedKinematicTree &);
-  bool hasGoodMuMuVertex (const reco::TransientTrack, const reco::TransientTrack,
-			  reco::TransientTrack &, reco::TransientTrack &,
-			  double &, double &, double &, double &, double &,
-			  double &, double &, double &);
   bool hasGoodBuMass(RefCountedKinematicTree, double &);
+  bool hasGoodBuVertex(const reco::TrackRef, const reco::TrackRef,
+                       const reco::TrackRef,
+                       double &, double &,
+                       RefCountedKinematicTree &);
+  bool hasGoodMuMuVertex (const reco::TransientTrack, const reco::TransientTrack,
+                          reco::TransientTrack &, reco::TransientTrack &,
+                          double &, double &, double &, double &, double &,
+                          double &, double &, double &);
+  bool hasGoodPionTrack(const edm::Event&, const pat::GenericParticle, double &);
+
+  bool hasPrimaryVertex(const edm::Event &);
+
+  void hltReport(const edm::Event&);
+  bool matchMuonTrack (const edm::Event&, const reco::TrackRef);
+  bool matchMuonTracks (const edm::Event&, const vector<reco::TrackRef>);
 
   void saveBuToPiMuMu(RefCountedKinematicTree);
   void saveBuVertex(RefCountedKinematicTree);
   void saveBuCosAlpha(RefCountedKinematicTree);
-  void saveBuCosAlpha2d(RefCountedKinematicTree); 
+  void saveBuCosAlpha2d(RefCountedKinematicTree);
   void saveBuLsig(RefCountedKinematicTree);
   void saveBuCtau(RefCountedKinematicTree);
+
+
+  void saveGenInfo(const edm::Event&);
+  void saveTruthMatch(const edm::Event&);
+  void saveMuonTriggerMatches(const pat::Muon, const pat::Muon);
 
 
   void saveSoftMuonVariables(pat::Muon, pat::Muon, reco::TrackRef, reco::TrackRef);
@@ -247,17 +250,17 @@ class BToPiMuMu : public edm::EDAnalyzer {
 
       // ----------member data ---------------------------
 
-  // --- begin input from python file ---                                                                                                                             
+  // --- begin input from python file ---                                                                                              
   string OutputFileName_;
 
-  // particle properties                                                                                                                                             
+  // particle properties                                                                                                        
   ParticleMass MuonMass_;
   float MuonMassErr_;
   ParticleMass PionMass_;
   float PionMassErr_;
   double BuMass_;
 
-  // labels                                                                                                                                                           
+  // labels                                                                                                                       
   edm::InputTag GenParticlesLabel_;
   edm::InputTag TriggerResultsLabel_;
   edm::InputTag BeamSpotLabel_;
@@ -485,6 +488,12 @@ BToPiMuMu::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   lumiblock = iEvent.luminosityBlock();
 
 
+  if (IsMonteCarlo_) saveGenInfo(iEvent);
+
+  hltReport(iEvent);
+
+
+
 }
 
 
@@ -516,10 +525,10 @@ BToPiMuMu::beginJob()
 
   tree_ = new TTree ("tree", "BToPiMuMu");
 
-  tree_->Branch("run", &run, "run/i");
-  tree_->Branch("event", &event, "event/i");
+  tree_->Branch("run",       &run,       "run/i");
+  tree_->Branch("event",     &event,     "event/i");
   tree_->Branch("lumiblock", &lumiblock, "lumiblock/i");
-  tree_->Branch("nprivtx", &nprivtx, "nprivtx/i");
+  tree_->Branch("nprivtx",   &nprivtx,   "nprivtx/i");
   tree_->Branch("triggernames", &triggernames);
   tree_->Branch("triggerprescales", &triggerprescales);
   tree_->Branch("mumdcabs", &mumdcabs);
@@ -599,6 +608,27 @@ BToPiMuMu::beginJob()
   tree_->Branch("bctau", &bctau);
   tree_->Branch("bctauerr", &bctauerr);
 
+  if (IsMonteCarlo_) {
+    tree_->Branch("genbchg", &genbchg , "genbchg/I" );
+    tree_->Branch("genbpx", &genbpx , "genbpx/D" );
+    tree_->Branch("genbpy", &genbpy , "genbpy/D" );
+    tree_->Branch("genbpz", &genbpz , "genbpz/D" );
+    tree_->Branch("gentrkchg", &gentrkchg , "gentrkchg/I" );
+    tree_->Branch("gentrkpx", &gentrkpx , "gentrkpx/D" );
+    tree_->Branch("gentrkpy", &gentrkpy , "gentrkpy/D" );
+    tree_->Branch("gentrkpz", &gentrkpz , "gentrkpz/D" );
+    tree_->Branch("genmumpx", &genmumpx , "genmumpx/D" );
+    tree_->Branch("genmumpy", &genmumpy , "genmumpy/D" );
+    tree_->Branch("genmumpz", &genmumpz , "genmumpz/D" );
+    tree_->Branch("genmuppx", &genmuppx , "genmuppx/D" );
+    tree_->Branch("genmuppy", &genmuppy , "genmuppy/D" );
+    tree_->Branch("genmuppz", &genmuppz , "genmuppz/D" );
+    tree_->Branch("decname", &decname);
+    tree_->Branch("istruemum", &istruemum );
+    tree_->Branch("istruemup", &istruemup );
+    tree_->Branch("istruetrk", &istruetrk );
+    tree_->Branch("istruebu", &istruebu );
+  }
 
 }
 
@@ -700,6 +730,16 @@ BToPiMuMu::clearVariables(){
   blsbs->clear(); blsbserr->clear(); bctau->clear(); bctauerr->clear();
   bcosalphabs2d->clear(); bcosalphabs2derr->clear();
 
+  if (IsMonteCarlo_) {
+    genbchg = 0; genbpx = 0; genbpy = 0; genbpz = 0;
+    gentrkchg = 0; gentrkpx = 0; gentrkpy = 0; gentrkpz = 0;
+    genmumpx = 0; genmumpy = 0; genmumpz = 0;
+    genmuppx = 0; genmuppy = 0; genmuppz = 0;
+    decname = "";
+    istruemum->clear(); istruemup->clear();
+    istruetrk->clear(); istruebu->clear();
+  }
+
 }
 
 void
@@ -784,27 +824,6 @@ BToPiMuMu::hasGoodPionTrack(const edm::Event& iEvent,
   return true;
 }
 
-bool
-BToPiMuMu::matchMuonTrack (const edm::Event& iEvent,
-			  const reco::TrackRef theTrackRef)
-{
-  if ( theTrackRef.isNull() ) return false;
-
-  edm::Handle< vector<pat::Muon> > thePATMuonHandle;
-  iEvent.getByLabel(MuonLabel_, thePATMuonHandle);
-  
-  reco::TrackRef muTrackRef;
-  for (vector<pat::Muon>::const_iterator iMuon = thePATMuonHandle->begin();
-       iMuon != thePATMuonHandle->end(); iMuon++){
-
-    muTrackRef = iMuon->innerTrack();
-    if ( muTrackRef.isNull() ) continue;
-
-    if (muTrackRef == theTrackRef) return true;
-  }
-  
-  return false;
-}
 
 void
 BToPiMuMu::buildBuToPiMuMu(const edm::Event& iEvent)
@@ -952,7 +971,7 @@ BToPiMuMu::buildBuToPiMuMu(const edm::Event& iEvent)
 	saveBuLsig(vertexFitTree);
 	saveBuCtau(vertexFitTree);
 
-      } // close kaon track loop
+      } // close pion track loop
     } // close mu+ loop
   } // close mu- loop
 
@@ -1210,6 +1229,40 @@ BToPiMuMu::hasGoodMuMuVertex (const reco::TransientTrack muTrackpTT,
   return true;
 }
 
+bool
+BToPiMuMu::matchMuonTrack (const edm::Event& iEvent,
+			  const reco::TrackRef theTrackRef)
+{
+  if ( theTrackRef.isNull() ) return false;
+
+  edm::Handle< vector<pat::Muon> > thePATMuonHandle;
+  iEvent.getByLabel(MuonLabel_, thePATMuonHandle);
+  
+  reco::TrackRef muTrackRef;
+  for (vector<pat::Muon>::const_iterator iMuon = thePATMuonHandle->begin();
+       iMuon != thePATMuonHandle->end(); iMuon++){
+
+    muTrackRef = iMuon->innerTrack();
+    if ( muTrackRef.isNull() ) continue;
+
+    if (muTrackRef == theTrackRef) return true;
+  }
+  
+  return false;
+}
+
+bool
+BToPiMuMu::matchMuonTracks (const edm::Event& iEvent,
+			   const vector<reco::TrackRef> theTracks)
+{
+  reco::TrackRef theTrackRef;
+  for(unsigned int j = 0; j < theTracks.size(); ++j) {
+    theTrackRef = theTracks[j];
+    if ( matchMuonTrack(iEvent, theTrackRef) ) return true;
+  }
+  return false;
+}
+
 
 bool
 BToPiMuMu::hasGoodBuMass(RefCountedKinematicTree vertexFitTree,
@@ -1423,6 +1476,44 @@ BToPiMuMu::computeCtau(RefCountedKinematicTree vertexFitTree,
 }
 
 
+double
+BToPiMuMu::computeEta (double Px, double Py, double Pz)
+{
+  double P = sqrt(Px*Px + Py*Py + Pz*Pz);
+
+  // cout << "\n@@@ Px = " << Px << "\t" << "Py = " << Py << "\t" << "Pz = " << Pz << endl;
+  // cout << "\n@@@ P = " << P << endl;
+
+  return 0.5*log((P + Pz) / (P - Pz));
+}
+
+double
+BToPiMuMu::computePhi (double Px, double Py, double Pz)
+{
+  double phi = atan(Py / Px);
+  if (Px < 0 && Py < 0) phi = phi - PI;
+  if (Px < 0 && Py > 0) phi = phi + PI;
+
+  // cout << "\n@@@ phi = " << phi << endl;
+
+  return phi;
+}
+
+double
+BToPiMuMu::computeEtaPhiDistance (double Px1, double Py1, double Pz1,
+                                  double Px2, double Py2, double Pz2)
+{
+  double phi1 = computePhi (Px1,Py1,Pz1);
+  double eta1 = computeEta (Px1,Py1,Pz1);
+  double phi2 = computePhi (Px2,Py2,Pz2);
+  double eta2 = computeEta (Px2,Py2,Pz2);
+
+  // cout << "\n@@@ phi1 = " << phi1 << "\t" << "eta1 = " << eta1 << "\t" << "phi2 = " << phi2 << "\t" << "eta2 = " << eta2 << endl; 
+
+  return sqrt((eta1-eta2) * (eta1-eta2) + (phi1-phi2) * (phi1-phi2));
+}
+
+
 void
 BToPiMuMu::saveBuCtau(RefCountedKinematicTree vertexFitTree)
 {
@@ -1430,6 +1521,96 @@ BToPiMuMu::saveBuCtau(RefCountedKinematicTree vertexFitTree)
   computeCtau(vertexFitTree, bctau_temp, bctauerr_temp);
   bctau->push_back(bctau_temp);
   bctauerr->push_back(bctauerr_temp);
+}
+
+void
+BToPiMuMu::saveGenInfo(const edm::Event& iEvent){
+  edm::Handle<reco::GenParticleCollection> genparticles;
+  iEvent.getByLabel(GenParticlesLabel_, genparticles );
+
+  // loop over all gen particles
+  for( size_t i = 0; i < genparticles->size(); ++i ) {
+    const reco::GenParticle & b = (*genparticles)[i];
+
+    // only select B+ or B- candidate
+    if ( abs(b.pdgId()) != BPLUS_PDG_ID ) continue;
+    int imum(-1), imup(-1), ipip(-1);
+    int ijpsi(-1), ipsi2s(-1);
+
+    // loop over all B+/- daughters
+    for ( size_t j = 0; j < b.numberOfDaughters(); ++j){
+      const reco::Candidate &dau = *(b.daughter(j));
+      if (dau.pdgId() == MUONMINUS_PDG_ID) imum = j;
+      if (dau.pdgId() == -MUONMINUS_PDG_ID) imup = j;
+      if (abs(dau.pdgId()) == PIONPLUS_PDG_ID) ipip = j;
+      if (dau.pdgId() == JPSI_PDG_ID ) ijpsi = j;
+      if (dau.pdgId() == PSI2S_PDG_ID ) ipsi2s = j;
+    }
+
+    if (ipip == -1) continue;
+
+    const reco::Candidate & pip = *(b.daughter(ipip));
+    const reco::Candidate *mum = NULL;
+    const reco::Candidate *mup = NULL;
+
+    // pi+ mu mu
+    if (imum != -1 && imup != -1) {
+      // cout << "Found GEN B+-> pi+ mu mu " << endl;
+      mum = b.daughter(imum);
+      mup = b.daughter(imup);
+      decname = "BuToPiMuMu";
+    }
+
+    // pi+ J/psi
+    else if ( ijpsi != -1 ) {
+      // cout << "Found GEN B+-> pi+ J/psi " << endl;
+      const reco::Candidate & jpsi = *(b.daughter(ijpsi));
+      for ( size_t j = 0; j < jpsi.numberOfDaughters(); ++j){
+	const reco::Candidate &dau = *(jpsi.daughter(j));
+	if ( dau.pdgId() == MUONMINUS_PDG_ID) imum = j;
+	if ( dau.pdgId() == -MUONMINUS_PDG_ID) imup = j;
+      }
+      if (imum != -1 && imup != -1) {
+	mum = jpsi.daughter(imum);
+	mup = jpsi.daughter(imup);
+	decname = "BuToPiJPsi";
+      }
+    }
+
+    // pi+ psi(2S)
+    else if ( ipsi2s != -1) {
+      // cout << "Found GEN B+-> pi+ psi(2S) " << endl;
+      const reco::Candidate & psi2s = *(b.daughter(ipsi2s));
+      for ( size_t j = 0; j < psi2s.numberOfDaughters(); ++j){
+	const reco::Candidate &dau = *(psi2s.daughter(j));
+	if ( dau.pdgId() == MUONMINUS_PDG_ID) imum = j;
+	if ( dau.pdgId() == -MUONMINUS_PDG_ID) imup = j;
+      }
+      if (imum != -1 && imup != -1) {
+	mum = psi2s.daughter(imum);
+	mup = psi2s.daughter(imup);
+	decname = "BuToPiPsi2S";
+      }
+    }
+
+    if ( mum == NULL || mup == NULL) continue;
+
+    // save gen info
+    genbchg = b.charge();
+    genbpx = b.px();
+    genbpy = b.py();
+    genbpz = b.pz();
+    gentrkchg = pip.charge();
+    gentrkpx = pip.px();
+    gentrkpy = pip.py();
+    gentrkpz = pip.pz();
+    genmumpx = mum->px();
+    genmumpy = mum->py();
+    genmumpz = mum->pz();
+    genmuppx = mup->px();
+    genmuppy = mup->py();
+    genmuppz = mup->pz();
+  }
 }
 
 void
@@ -1483,7 +1664,89 @@ BToPiMuMu::saveDimuVariables(double DCAmumBS, double DCAmumBSErr,
   mumumasserr->push_back(mu_mu_mass_err);
 }
 
+void
+BToPiMuMu::saveMuonTriggerMatches(const pat::Muon iMuonM, const pat::Muon iMuonP)
+{        
+  string mum_matched_lastfilter_name = "";
+  string mup_matched_lastfilter_name = "";
 
+  for(vector<string>::iterator it = triggernames->begin();
+      it != triggernames->end(); ++it) {
+  
+    string hltLastFilterName = mapTriggerToLastFilter_[*it] ;
+
+    const pat::TriggerObjectStandAloneCollection mumHLTMatches
+      = iMuonM.triggerObjectMatchesByFilter( hltLastFilterName );
+    const pat::TriggerObjectStandAloneCollection mupHLTMatches
+      = iMuonP.triggerObjectMatchesByFilter( hltLastFilterName );
+    
+    if ( mumHLTMatches.size() > 0 )
+      mum_matched_lastfilter_name.append(hltLastFilterName+" ") ;
+    
+    if ( mupHLTMatches.size() > 0 )
+      mup_matched_lastfilter_name.append(hltLastFilterName+" ") ;
+  }
+  
+  mumtriglastfilter->push_back(mum_matched_lastfilter_name);
+  muptriglastfilter->push_back(mup_matched_lastfilter_name);
+}
+
+void
+BToPiMuMu::saveTruthMatch(const edm::Event& iEvent){
+
+  double deltaEtaPhi;
+  for (vector<int>::size_type i = 0; i < bmass->size(); i++) {
+    // truth match with mu-
+    deltaEtaPhi = computeEtaPhiDistance(genmumpx, genmumpy, genmumpz,
+					mumpx->at(i), mumpy->at(i), mumpz->at(i));
+    /*
+      cout << "\n@@@ deltaEtaPhi(mu-) = " << deltaEtaPhi << endl;
+      cout << "\n printing GEN values -----> " << endl;
+      cout << "genmumpx = " << genmumpx << endl;
+      cout << "genmumpy = " << genmumpy << endl;
+      cout << "genmumpz = " << genmumpz << endl;
+      cout << "\n printing RECO values -----> " << endl;
+      cout << "mumpx = " << mumpx->at(i) << endl;
+      cout << "mumpy = " << mumpy->at(i) << endl;
+      cout << "mumpz = " << mumpz->at(i) << endl;
+    */
+    if (deltaEtaPhi < TruthMatchMuonMaxR_) {
+      istruemum->push_back(true);
+    } else {
+      istruemum->push_back(false);
+    }
+    // truth match with mu+
+    deltaEtaPhi = computeEtaPhiDistance(genmuppx, genmuppy, genmuppz,
+					muppx->at(i), muppy->at(i), muppz->at(i));
+    // cout << "\n@@@ deltaEtaPhi(mu+) = " << deltaEtaPhi << endl;
+    if (deltaEtaPhi < TruthMatchMuonMaxR_) {
+      istruemup->push_back(true);
+    }
+    else {
+      istruemup->push_back(false);
+    }
+    // truth match with pion track
+    deltaEtaPhi = computeEtaPhiDistance(gentrkpx, gentrkpy, gentrkpz,
+					trkpx->at(i), trkpy->at(i), trkpz->at(i));
+    // cout << "\n@@@ deltaEtaPhi(pion) = " << deltaEtaPhi << endl;
+    if (deltaEtaPhi < TruthMatchPionMaxR_){
+      istruetrk->push_back(true);
+    } else {
+      istruetrk->push_back(false);
+    }
+
+    // truth match with B+/B-
+    if ( istruemum->back() && istruemup->back()	&& istruetrk->back()) {
+      istruebu->push_back(true);
+    } else {
+      istruebu->push_back(false);
+    }
+    // cout << "istruemum = " << istruemum->at(i) << endl;
+    // cout << "istruemup = " << istruemup->at(i) << endl;
+    // cout << "istruetrk = " << istruetrk->at(i) << endl;
+    // cout << "istruebu = " << istruebu->at(i) << endl;
+  }
+}
 
 //define this as a plug-in
 DEFINE_FWK_MODULE(BToPiMuMu);
