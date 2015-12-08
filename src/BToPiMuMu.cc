@@ -15,7 +15,8 @@
 // Original Author:  Niladribihari Sahoo <nsahoo@cern.ch>
 //       copyright @ Niladribihari Sahoo, NISER, Bhubaneswar
 //         Created:  Thu Oct  2 08:05:02 CEST 2014
-//         update v1 : 3 dec 2015
+//    updated v1.1 : 3 dec 2015
+//    updated v1.2 : 5 dec 2015 (added quality vars to tree)
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // $Id$
