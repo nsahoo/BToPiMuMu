@@ -27,13 +27,13 @@ print "========================================\n"
 import FWCore.ParameterSet.Config as cms
 from btopimumu_cfi import process
 
-#process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(100) )
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1000) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(500) )
+#process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1000) )
 
 process.source = cms.Source("PoolSource",
                             fileNames = cms.untracked.vstring(
-     '/store/mc/Summer12_DR53X/BuToMuMuPi_EtaPtFilter_8TeV-pythia6-evtgen/AODSIM/PU_S10_START53_V7C-v1/10000/022D253A-A85D-E211-A9AC-00266CFFCCC8.root',
-    
+#     '/store/mc/Summer12_DR53X/BuToMuMuPi_EtaPtFilter_8TeV-pythia6-evtgen/AODSIM/PU_S10_START53_V7C-v1/10000/022D253A-A85D-E211-A9AC-00266CFFCCC8.root',
+     '/store/mc/Summer12_DR53X/BuToJpsiPi_EtaPtFilter_8TeV-pythia6-evtgen/AODSIM/PU_S10_START53_V7C-v1/20000/007929BA-EF65-E211-B216-00266CFFCCC8.root',
                             )
                         )
 
@@ -157,4 +157,4 @@ g_LastFilterNames = [i[1] for i in g_TriggerNames_LastFilterNames]
 process.ntuple.TriggerNames = cms.vstring(g_TriggerNames)
 process.ntuple.LastFilterNames = cms.vstring(g_LastFilterNames)
 process.ntuple.IsMonteCarlo = cms.untracked.bool(True)
-
+process.ntuple.KeepGENOnly = cms.untracked.bool(False)

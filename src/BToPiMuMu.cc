@@ -37,7 +37,7 @@
 #include "FWCore/Common/interface/TriggerNames.h"
 
 #include "MagneticField/Engine/interface/MagneticField.h"
-//#include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
+#include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
 
 //#include "DataFormats/Common/interface/Handle.h"
 #include "DataFormats/Common/interface/TriggerResults.h"
@@ -327,6 +327,9 @@ class BToPiMuMu : public edm::EDAnalyzer {
   vector<int> *mumnpixhits, *mupnpixhits, *mumnpixlayers, *mupnpixlayers;
   vector<int> *mumntrkhits, *mupntrkhits, *mumntrklayers, *mupntrklayers;
   vector<double> *mumnormchi2, *mupnormchi2;
+
+  vector<int> *mumtrkqual, *muptrkqual;  /* added track quality vars */
+
   vector<double> *mumdxyvtx, *mupdxyvtx, *mumdzvtx, *mupdzvtx;
   vector<string> *mumtriglastfilter, *muptriglastfilter;
   vector<double> *mumpt, *muppt, *mumeta, *mupeta;
@@ -431,7 +434,9 @@ BToPiMuMu::BToPiMuMu(const edm::ParameterSet& iConfig):
     mumisgoodmuon(0), mupisgoodmuon(0),
     mumnpixhits(0), mupnpixhits(0), mumnpixlayers(0), mupnpixlayers(0),
     mumntrkhits(0), mupntrkhits(0), mumntrklayers(0), mupntrklayers(0),
-    mumnormchi2(0), mupnormchi2(0), mumdxyvtx(0), mupdxyvtx(0),
+    mumnormchi2(0), mupnormchi2(0), 
+    mumtrkqual(0), muptrkqual(0),         /* added */
+    mumdxyvtx(0), mupdxyvtx(0),
     mumdzvtx(0), mupdzvtx(0), mumtriglastfilter(0), muptriglastfilter(0),
     mumpt(0), muppt(0), mumeta(0), mupeta(0),
 
@@ -493,7 +498,27 @@ BToPiMuMu::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   hltReport(iEvent);
 
+  if ( KeepGENOnly_){
+    tree_->Fill();
+    n_selected_ += 1;
+  }else{
+    if ( hasBeamSpot(iEvent) ) {
+      iSetup.get<IdealMagneticFieldRecord>().get(bFieldHandle_);
+      if ( bFieldHandle_.isValid() && hasPrimaryVertex(iEvent) ) {
+	buildBuToPiMuMu(iEvent) ;
+	if (IsMonteCarlo_) saveTruthMatch(iEvent);
+	//tree_->Fill();     
+	n_selected_ += 1;               /* added */
+      }
+    }
+   
+    if (IsMonteCarlo_ || nb > 0){ // Keep failed events for MC to calculate reconstruction efficiency.
+      tree_->Fill();
+    }
+  }
 
+
+  clearVariables();
 
 }
 
@@ -564,6 +589,8 @@ BToPiMuMu::beginJob()
   tree_->Branch("mupntrklayers", &mupntrklayers);
   tree_->Branch("mumnormchi2", &mumnormchi2);
   tree_->Branch("mupnormchi2", &mupnormchi2);
+  tree_->Branch("mumtrkqual", &mumtrkqual);  /* added quality vars */
+  tree_->Branch("muptrkqual", &muptrkqual);
   tree_->Branch("mumdxyvtx", &mumdxyvtx);
   tree_->Branch("mupdxyvtx", &mupdxyvtx);
   tree_->Branch("mumdzvtx", &mumdzvtx);
@@ -714,7 +741,9 @@ BToPiMuMu::clearVariables(){
   mupnpixlayers->clear();
   mumntrkhits->clear(); mupntrkhits->clear(); mumntrklayers->clear();
   mupntrklayers->clear();
-  mumnormchi2->clear(); mupnormchi2->clear(); mumdxyvtx->clear(); mupdxyvtx->clear();
+  mumnormchi2->clear(); mupnormchi2->clear(); 
+  mumtrkqual->clear(); muptrkqual->clear();    /* added */
+  mumdxyvtx->clear(); mupdxyvtx->clear();
   mumdzvtx->clear(); mupdzvtx->clear(); mumtriglastfilter->clear();
   muptriglastfilter->clear();
   mumpt->clear(); muppt->clear();
@@ -979,7 +1008,7 @@ BToPiMuMu::buildBuToPiMuMu(const edm::Event& iEvent)
   //  cout << "\n@@@ nb : " << nb << endl;  /* added cout statement */
 
   if ( nb > 0) 
-    edm::LogInfo("myBu") << "Found " << nb << " Bu -> K+ mu mu.";    
+    edm::LogInfo("myBu") << "Found " << nb << " Bu -> pi+ mu mu.";    
 
 }
 
@@ -1630,6 +1659,10 @@ BToPiMuMu::saveSoftMuonVariables(pat::Muon iMuonM, pat::Muon iMuonP,
   mupntrklayers->push_back(muTrackp->hitPattern().trackerLayersWithMeasurement());
   mumnormchi2->push_back(muTrackm->normalizedChi2());
   mupnormchi2->push_back(muTrackp->normalizedChi2());
+
+  mumtrkqual->push_back(muTrackm->quality(reco::TrackBase::highPurity));   /* added */
+  muptrkqual->push_back(muTrackp->quality(reco::TrackBase::highPurity));
+
   mumdxyvtx->push_back(muTrackm->dxy(primaryVertex_.position()));
   mupdxyvtx->push_back(muTrackp->dxy(primaryVertex_.position()));
   mumdzvtx->push_back(muTrackm->dz(primaryVertex_.position()));

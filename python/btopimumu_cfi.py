@@ -49,17 +49,18 @@ removeMCMatching(process, ['All'], outputModules = [])
 
 process.ntuple = cms.EDAnalyzer(
     'BToPiMuMu',
-    OutputFileName = cms.string("BuToPiMuMu.root"),
+    OutputFileName = cms.string("BToPiMuMu.root"),
     BuildBuToPiMuMu = cms.untracked.bool(True), 
 
     # particle properties 
-    MuonMass = cms.untracked.double(0.10565837), 
-    MuonMassErr = cms.untracked.double(3.5*1e-9), 
+    MuonMass = cms.untracked.double(0.10565837),   #[GeV]
+    MuonMassErr = cms.untracked.double(3.5e-9), 
     PionMass = cms.untracked.double(0.139570), 
     PionMassErr = cms.untracked.double(3.5e-7),
     BuMass = cms.untracked.double(5.27925),
 
     # labels
+    GenParticlesLabel = cms.InputTag("genParticles"),
     TriggerResultsLabel = cms.InputTag("TriggerResults","", 'HLT'),
     BeamSpotLabel = cms.InputTag('offlineBeamSpot'),
     VertexLabel = cms.InputTag('offlinePrimaryVertices'),
@@ -89,8 +90,8 @@ process.ntuple = cms.EDAnalyzer(
     MuMuMinCosAlphaBs = cms.untracked.double(0.9),
 
     # pre-selection cuts 
-    TrkMinPt = cms.untracked.double(0.2), #[GeV/c]  => change value ? 0.6
-    TrkMinDcaSigBs = cms.untracked.double(0.1), # hadron DCA/sigma w/respect to BS  => change value ? 1.2
+    TrkMinPt = cms.untracked.double(0.6), #[GeV/c]  => change value ? 0.6 (0.2)
+    TrkMinDcaSigBs = cms.untracked.double(1.2), # hadron DCA/sigma w/respect to BS  => change value ? 1.2 (0.1)
     TrkMaxR = cms.untracked.double(110.0), # [cm]
     TrkMaxZ = cms.untracked.double(280.0), # [cm]
    
