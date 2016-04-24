@@ -26,6 +26,7 @@ const double PION_MASS = 0.13957018;
 //**************************
 TDatime t_begin_ , t_now_ ;
 int n_processed_, n_selected_; 
+int n_triggers0, n_triggers1;
 
 TTree *tree_; 
 
@@ -40,6 +41,7 @@ double Trkdcasigbs    = 0;
 
 double Bmass          = 0;
 double Bpt            = 0;
+double Beta           = 0;
 double Bphi           = 0;
 int    Bchg           = 0;
 double Bvtxcl         = 0;
@@ -48,9 +50,11 @@ double Bcosalphabs    = 0;
 double Bcosalphabs2d  = 0;
 double Bctau          = 0;
 
-double Q2 = 0;
+double Q2             = 0;
+double DimuPt         = 0;
+double DimuEta        = 0;
 
-
+int    Triggers       = 0;
 
 
 //*********************************
@@ -69,6 +73,10 @@ double  genMupPhi    = 0;
 double  genMumPt     = 0;
 double  genMumEta    = 0;
 double  genMumPhi    = 0;
+
+double genDimuPt     = 0;
+double genDimuEta    = 0;
+double genDimuPhi    = 0;
 
 int     genTkChg     = 999;
 double  genTkPt      = 0;
@@ -90,6 +98,7 @@ void ClearEvent()
     
   Bmass          = 0;
   Bpt            = 0;
+  Beta           = 0;
   Bphi           = 0;
   Bchg           = 0;
   Bvtxcl         = 0;
@@ -99,6 +108,10 @@ void ClearEvent()
   Bctau          = 0;
 
   Q2             = 0;
+  DimuPt         = 0;
+  DimuEta        = 0;
+
+  Triggers       = 0;
 
   //*****
   // mc
@@ -116,6 +129,10 @@ void ClearEvent()
   genMumPt = 0;
   genMumEta= 0;
   genMumPhi= 0;
+
+  genDimuPt = 0;
+  genDimuEta = 0;
+  genDimuPhi = 0;
 
   genTkChg = 999;
   genTkPt = 0;
@@ -167,6 +184,9 @@ void SingleBToPiMuMuSelector::Begin(TTree * /*tree*/)
   n_processed_ = 0;
   n_selected_ = 0;
 
+  n_triggers0 = 0;
+  n_triggers1 = 0;
+
 }//}}}
 
 void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
@@ -181,6 +201,7 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
 
   tree_->Branch("Bmass"         , &Bmass         , "Bmass/D");
   tree_->Branch("Bpt"           , &Bpt           , "Bpt/D");
+  tree_->Branch("Beta"          , &Beta          , "Beta/D");
   tree_->Branch("Bphi"          , &Bphi          , "Bphi/D");
   tree_->Branch("Bchg"          , &Bchg          , "Bchg/I");
 
@@ -192,6 +213,9 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
 
   tree_->Branch("Q2"            , &Q2            , "Q2/D");
 
+  tree_->Branch("DimuPt"        , &DimuPt        , "DimuPt/D");
+  tree_->Branch("DimuEta"       , &DimuEta       , "DimuEta/D");
+  tree_->Branch("Triggers"      , &Triggers      , "Triggers/I");
 
   string datatype = get_option_value(option, "datatype");
   std::map<string,int> maptype;
@@ -211,6 +235,11 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
     tree_->Branch("genMumPt"     , &genMumPt     , "genMumPt/D");
     tree_->Branch("genMumEta"    , &genMumEta    , "genMumEta/D");
     tree_->Branch("genMumPhi"    , &genMumPhi    , "genMumPhi/D");
+
+    tree_->Branch("genDimuPt"    , &genDimuPt    , "genDimuPt/D");
+    tree_->Branch("genDimuEta"   , &genDimuEta   , "genDimuEta/D");
+    tree_->Branch("genDimuPhi"   , &genDimuPhi   , "genDimuPhi/D");
+
     tree_->Branch("genQ2"        , &genQ2        , "genQ2/D");
     break;
   case 998:
@@ -227,6 +256,11 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
     tree_->Branch("genMumPt"     , &genMumPt     , "genMumPt/D");
     tree_->Branch("genMumEta"    , &genMumEta    , "genMumEta/D");
     tree_->Branch("genMumPhi"    , &genMumPhi    , "genMumPhi/D");
+
+    tree_->Branch("genDimuPt"    , &genDimuPt    , "genDimuPt/D");
+    tree_->Branch("genDimuEta"   , &genDimuEta   , "genDimuEta/D");
+    tree_->Branch("genDimuPhi"   , &genDimuPhi   , "genDimuPhi/D");
+
     tree_->Branch("genQ2"        , &genQ2        , "genQ2/D");
     break;
   case 999:
@@ -243,6 +277,11 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
     tree_->Branch("genMumPt"     , &genMumPt     , "genMumPt/D");
     tree_->Branch("genMumEta"    , &genMumEta    , "genMumEta/D");
     tree_->Branch("genMumPhi"    , &genMumPhi    , "genMumPhi/D");
+
+    tree_->Branch("genDimuPt"    , &genDimuPt    , "genDimuPt/D");
+    tree_->Branch("genDimuEta"   , &genDimuEta   , "genDimuEta/D");
+    tree_->Branch("genDimuPhi"   , &genDimuPhi   , "genDimuPhi/D");
+
     tree_->Branch("genTkChg"     , &genTkChg     , "genTkChg/I");
     tree_->Branch("genTkPt"      , &genTkPt      , "genTkPt/D");
     tree_->Branch("genTkEta"     , &genTkEta     , "genTkEta/D");
@@ -274,6 +313,9 @@ Bool_t SingleBToPiMuMuSelector::Process(Long64_t entry)
   GetEntry(entry); 
   n_processed_ += 1; 
   Nb = nb; 
+
+  if (triggernames->size() == 0) n_triggers0++;
+  if (triggernames->size() == 1) n_triggers1++;
 
   if (datatype != "data") SaveGen();
 
@@ -313,6 +355,11 @@ void SingleBToPiMuMuSelector::Terminate()
 	 n_processed_, n_selected_, 
 	 t_now_.Convert() - t_begin_.Convert(), 
 	 float(n_processed_)/(t_now_.Convert()-t_begin_.Convert()) );
+
+  printf("TRIGGER INFO \n");
+  printf("Triggers0 : %i\n", n_triggers0);
+  printf("Triggers1 : %i\n", n_triggers1);
+
 }//}}}
 
 int SingleBToPiMuMuSelector::SelectB(string cut)
@@ -393,6 +440,7 @@ void SingleBToPiMuMuSelector::SaveEvent(int i)
   Bctau = bctau->at(i); 
 
   Bpt = B_4vec.Pt(); 
+  Beta = B_4vec.Eta();
   Bphi = B_4vec.Phi();
   Mumumass = mumumass->at(i); 
   Mumumasserr = mumumasserr->at(i); 
@@ -400,6 +448,11 @@ void SingleBToPiMuMuSelector::SaveEvent(int i)
   Trkpt = Tk_4vec.Pt();
   Trkdcasigbs = fabs( trkdcabs->at(i)/trkdcabserr->at(i) ); 
   Q2 = pow(mumumass->at(i),2);
+
+  DimuPt  = (Mup_4vec+Mum_4vec).Pt();
+  DimuEta = (Mup_4vec+Mum_4vec).Eta();
+
+  Triggers = triggernames->size();
 
 }//}}}
 
@@ -425,6 +478,11 @@ void SingleBToPiMuMuSelector::SaveGen()
   genMumPt     = genMum_4vec.Pt();
   genMumEta    = genMum_4vec.Eta();
   genMumPhi    = genMum_4vec.Phi();
+
+  genDimuPt    = (genMup_4vec+genMum_4vec).Pt();
+  genDimuEta   = (genMup_4vec+genMum_4vec).Eta();
+  genDimuPhi   = (genMup_4vec+genMum_4vec).Phi();
+
   genTkChg     = gentrkchg;
   genTkPt      = genTk_4vec.Pt();
   genTkEta     = genTk_4vec.Eta();
@@ -505,7 +563,7 @@ int main(int argc, char** argv) {
   }
 
   TString option; 
-  option.Form("datatype=%s;cut=%s;ofile=sel_%s_%s_s%d.root", datatype.Data(), cut.Data(), outfile.Data(), datatype.Data(), iStart); 
+  option.Form("datatype=%s;cut=%s;ofile=sel_%s_%s_%s_s%d.root", datatype.Data(), cut.Data(), outfile.Data(), datatype.Data(), cut.Data(), iStart);
 
     
   // It's not allowed to run with fat trees!
