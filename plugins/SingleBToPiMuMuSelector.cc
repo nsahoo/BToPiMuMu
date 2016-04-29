@@ -113,11 +113,11 @@ void ClearEvent()
   DimuEta        = 0;
 
   Triggers       = 0;
+  trueBu         = 999;
 
   //*****
   // mc
   //*****
-  trueBu  = 999;
   genBChg = 999;
   genBPt = 0;
   genBEta= 0;
@@ -218,6 +218,7 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
   tree_->Branch("DimuPt"        , &DimuPt        , "DimuPt/D");
   tree_->Branch("DimuEta"       , &DimuEta       , "DimuEta/D");
   tree_->Branch("Triggers"      , &Triggers      , "Triggers/I");
+  tree_->Branch("trueBu"        , &trueBu        , "trueBu/I");
 
   string datatype = get_option_value(option, "datatype");
   std::map<string,int> maptype;
@@ -232,7 +233,6 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
   case 2:
     break;
   case 3:
-    tree_->Branch("trueBu"       , &trueBu       , "trueBu/I");
     tree_->Branch("genBChg"      , &genBChg      , "genBChg/I");
     tree_->Branch("genBPhi"      , &genBPhi      , "genBPhi/D");
     tree_->Branch("genMupPt"     , &genMupPt     , "genMupPt/D");
@@ -249,7 +249,6 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
     tree_->Branch("genQ2"        , &genQ2        , "genQ2/D");
     break;
   case 998:
-    tree_->Branch("trueBu"       , &trueBu       , "trueBu/I");
     tree_->Branch("genBChg"      , &genBChg      , "genBChg/I");
     tree_->Branch("genBPt"       , &genBPt       , "genBPt/D");
     tree_->Branch("genBEta"      , &genBEta      , "genBEta/D");
@@ -271,7 +270,6 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
     tree_->Branch("genQ2"        , &genQ2        , "genQ2/D");
     break;
   case 999:
-    tree_->Branch("trueBu"       , &trueBu       , "trueBu/I");
     tree_->Branch("genBChg"      , &genBChg      , "genBChg/I");
     tree_->Branch("genBPt"       , &genBPt       , "genBPt/D");
     tree_->Branch("genBEta"      , &genBEta      , "genBEta/D");
@@ -448,6 +446,7 @@ void SingleBToPiMuMuSelector::SaveEvent(int i)
   Bcosalphabs = bcosalphabs->at(i); 
   Bcosalphabs2d = bcosalphabs2d->at(i);
   Bctau = bctau->at(i); 
+  trueBu = istruebu->at(i);
 
   Bpt = B_4vec.Pt(); 
   Beta = B_4vec.Eta();
@@ -521,7 +520,7 @@ bool option_exists(char** begin, char** end, const std::string& option)
 void print_usage()
 {//{{{
   cerr << "Usage: SingleBuToKstarMuMuSelector datatype cut infile outfile [-n] [-s] [-j] [-h]\n"
-       << "  datatype: data, mc, mc.lite, mc.hlt\n"
+       << "  datatype: data, mc, mc.nogen, mc.lite, mc.hlt\n"
        << "  cut     : cut0, nocut, genonly.\n"
        << "Options: \n" 
        << "  -h \t\tPrint this info.\n"
