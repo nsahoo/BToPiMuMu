@@ -60,6 +60,7 @@ int    Triggers       = 0;
 //*********************************
 // Branches for Gen level info
 //*********************************
+int     trueBu       = 999; 
 int     genBChg      = 999;
 double  genBPt       = 0;
 double  genBEta      = 0;
@@ -116,6 +117,7 @@ void ClearEvent()
   //*****
   // mc
   //*****
+  trueBu  = 999;
   genBChg = 999;
   genBPt = 0;
   genBEta= 0;
@@ -220,13 +222,17 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
   string datatype = get_option_value(option, "datatype");
   std::map<string,int> maptype;
   maptype.insert(std::pair<string,int>("data",1));
-  maptype.insert(std::pair<string,int>("mc.lite",2));
+  maptype.insert(std::pair<string,int>("mc.nogen",2));
+  maptype.insert(std::pair<string,int>("mc.lite",3));
   maptype.insert(std::pair<string,int>("mc.hlt",998));
   maptype.insert(std::pair<string,int>("mc",999));
   switch (maptype[datatype]) {
   case 1:
     break;
   case 2:
+    break;
+  case 3:
+    tree_->Branch("trueBu"       , &trueBu       , "trueBu/I");
     tree_->Branch("genBChg"      , &genBChg      , "genBChg/I");
     tree_->Branch("genBPhi"      , &genBPhi      , "genBPhi/D");
     tree_->Branch("genMupPt"     , &genMupPt     , "genMupPt/D");
@@ -243,6 +249,7 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
     tree_->Branch("genQ2"        , &genQ2        , "genQ2/D");
     break;
   case 998:
+    tree_->Branch("trueBu"       , &trueBu       , "trueBu/I");
     tree_->Branch("genBChg"      , &genBChg      , "genBChg/I");
     tree_->Branch("genBPt"       , &genBPt       , "genBPt/D");
     tree_->Branch("genBEta"      , &genBEta      , "genBEta/D");
@@ -264,6 +271,7 @@ void SingleBToPiMuMuSelector::SlaveBegin(TTree * /*tree*/)
     tree_->Branch("genQ2"        , &genQ2        , "genQ2/D");
     break;
   case 999:
+    tree_->Branch("trueBu"       , &trueBu       , "trueBu/I");
     tree_->Branch("genBChg"      , &genBChg      , "genBChg/I");
     tree_->Branch("genBPt"       , &genBPt       , "genBPt/D");
     tree_->Branch("genBEta"      , &genBEta      , "genBEta/D");
@@ -317,10 +325,12 @@ Bool_t SingleBToPiMuMuSelector::Process(Long64_t entry)
   if (triggernames->size() == 0) n_triggers0++;
   if (triggernames->size() == 1) n_triggers1++;
 
-  if (datatype != "data") SaveGen();
+  //if (datatype != "data") SaveGen();
+  if (datatype != "data" || datatype != "mc.nogen") SaveGen();
 
   int i = SelectB(cut); 
-  if ( i != -1 && (datatype == "data" || istruebu->at(i)) ) {
+  //  if ( i != -1 && (datatype == "data" || istruebu->at(i)) ) {
+  if ( i != -1 && (datatype == "data" || datatype == "mc.nogen" || datatype == "mc.lite" || datatype == "mc.hlt" || datatype == "mc") ) {
     printf("Entry#%lld, candidate#%d is selected.\n",entry,i);
     n_selected_ += 1; 
     SaveEvent(i);     
