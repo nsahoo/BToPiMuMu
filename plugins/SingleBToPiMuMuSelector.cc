@@ -411,7 +411,7 @@ int SingleBToPiMuMuSelector::SelectB(string cut)
 bool SingleBToPiMuMuSelector::HasGoodDimuon(int i)
 {//{{{
  
-  if ( // soft muon id
+  if ( // soft muon id (cf https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideMuonId#New_Version_recommended)
       mumisgoodmuon->at(i)
       && mupisgoodmuon->at(i) 
       && mumntrklayers->at(i) > 5  // 2012 Data
@@ -420,8 +420,10 @@ bool SingleBToPiMuMuSelector::HasGoodDimuon(int i)
       // && mupntrkhits->at(i) > 10 
       && mumnpixlayers->at(i) > 0  // 1,0 (old,new)
       && mupnpixlayers->at(i) > 0  // 1,0 (old,new) 
-      && mumnormchi2->at(i) < 1.8 
-      && mupnormchi2->at(i) < 1.8 
+      //&& mumnormchi2->at(i) < 1.8 
+      //&& mupnormchi2->at(i) < 1.8 
+      && mumtrkqual->at(i) == 1
+      && muptrkqual->at(i) == 1
       && fabs(mumdxyvtx->at(i)) < 0.3  // 3,0.3 (old,new)
       && fabs(mupdxyvtx->at(i)) < 0.3  // 3,0.3 (old,new)
       && fabs(mumdzvtx->at(i)) < 20   // 30,20 (old,new) 
