@@ -1406,7 +1406,7 @@ void
 BToPiMuMu::saveBuCosAlpha(RefCountedKinematicTree vertexFitTree)
 {
   // alpha is the angle in the transverse plane between the B0 momentum
-  // and the seperation between the B0 vertex and the beamspot
+  // and the separation between the B0 vertex and the beamspot
   vertexFitTree->movePointerToTheTop();
   RefCountedKinematicParticle b_KP = vertexFitTree->currentParticle();
   RefCountedKinematicVertex b_KV = vertexFitTree->currentDecayVertex();
